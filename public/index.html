@@ -206,6 +206,8 @@
   </div>
 
   <script>
+let votingPasswordEnabled = false;
+let votingPasswordValue = '';
     const API_URL = '/api';
 
     // Estado en memoria
@@ -565,7 +567,15 @@
       const { ok, data } = await fetchJSON(`${API_URL}/cast-vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ access_code: verifiedCode, candidate_id: selectedCandidateId })
+        body: JSON.stringify({ access_code: verifiedCode, candidate_id: selectedCandidateId,
+      voting_password: (function(){
+        if (votingPasswordEnabled && !votingPasswordValue) {
+          const pass = prompt("🔐 Ingrese la clave de votación:");
+          if (!pass) return null;
+          votingPasswordValue = pass;
+        }
+        return votingPasswordValue;
+      })() })
       });
 
       $('btn-vote').innerHTML = '🗳️ Confirmar Voto';
@@ -741,6 +751,7 @@
       
       resetSessionUI();
       await loadStatus();
+// Voting password support added
       await loadCandidates();
       setInterval(loadStatus, 10000);
       
