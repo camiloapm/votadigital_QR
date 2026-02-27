@@ -219,7 +219,13 @@
         <h3>Escudo y Nombre del Colegio</h3>
         <p style="margin-bottom: 1rem; color: #64748b;">Estos datos aparecerán en los carnets y en la página de votación.</p>
 
-        <label>Nombre del Colegio:</label>
+        <label>Nombre del Colegio:
+        <h3 style="margin-top:1.5rem;">🔐 Clave de Votación</h3>
+        <label>
+          <input type="checkbox" id="enable-voting-password">
+          Activar clave para votar
+        </label>
+        <input type="password" id="voting-password" placeholder="Nueva clave de votación"></label>
         <input type="text" id="school-name" placeholder="Ej: Colegio San José">
 
         <label>Escudo del Colegio:</label>
@@ -765,12 +771,16 @@
         const res = await fetch(`${API_URL}/config`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-admin-code': adminCode },
-          body: JSON.stringify({ school_name: name, school_logo_url: logoData, admin_code: adminCode })
+          body: JSON.stringify({ school_name: name,
+        voting_password: document.getElementById('voting-password').value,
+        voting_password_enabled: document.getElementById('enable-voting-password').checked, school_logo_url: logoData, admin_code: adminCode })
         });
 
         if (res.ok) {
           showToast('Configuración guardada correctamente', 'success');
-          schoolConfig = { school_name: name, school_logo_url: logoData };
+          schoolConfig = { school_name: name,
+        voting_password: document.getElementById('voting-password').value,
+        voting_password_enabled: document.getElementById('enable-voting-password').checked, school_logo_url: logoData };
           
           // Limpiar previsualización si se guardó correctamente
           if (base64Data) {
