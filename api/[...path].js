@@ -98,7 +98,7 @@ async function checkStatus(req, res) {
 
   const { data, error } = await supabase
     .from('config')
-    .select('election_status, school_logo_url, school_name')
+    .select('election_status, school_logo_url, school_name, voting_password_enabled')
     .eq('id', 1)
     .single();
 
@@ -108,7 +108,8 @@ async function checkStatus(req, res) {
     open: data.election_status === 'open',
     status: data.election_status,
     school_logo: data.school_logo_url,
-    school_name: data.school_name
+    school_name: data.school_name,
+    voting_password_enabled: data.voting_password_enabled
   });
 }
 
@@ -137,30 +138,57 @@ async function verifyCode(req, res) {
   });
 }
 
+
 async function castVote(req, res) {
   const supabase = getSupabase();
 
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
+  if (req.method !== 'POST') 
+    return res.status(405).json({ error: 'Método no permitido' });
 
-  const { access_code, candidate_id } = req.body || {};
-  if (!access_code || !candidate_id) return res.status(400).json({ error: 'Datos incompletos' });
+  const { access_code, candidate_id, voting_password } = req.body || {};
+
+  if (!access_code || !candidate_id) {
+    return res.status(400).json({ error: 'Datos incompletos' });
+  }
+
+  const { data: config, error: configError } = await supabase
+    .from('config')
+    .select('voting_password_enabled, voting_password')
+    .eq('id', 1)
+    .single();
+
+  if (configError) {
+    return res.status(500).json({ error: 'Error verificando configuración' });
+  }
+
+  if (config?.voting_password_enabled) {
+    if (!voting_password) {
+      return res.status(401).json({ error: 'Clave requerida' });
+    }
+
+    if (voting_password !== config.voting_password) {
+      return res.status(401).json({ error: 'Clave incorrecta' });
+    }
+  }
 
   const { data, error } = await supabase.rpc('cast_vote', {
     p_access_code: access_code,
     p_candidate_id: candidate_id
   });
 
-  if (error) return res.status(500).json({ error: 'Error al procesar voto', details: error.message });
+  if (error)
+    return res.status(500).json({ error: 'Error al procesar voto' });
 
-  const result = data;
-  if (!result.success) return res.status(400).json({ error: result.error });
+  if (!data.success)
+    return res.status(400).json({ error: data.error });
 
   return res.status(200).json({
     success: true,
     message: 'Voto registrado correctamente',
-    student: result.student
+    student: data.student
   });
 }
+
 
 async function getCandidates(req, res) {
   const supabase = getSupabase();
@@ -201,13 +229,15 @@ async function handleConfig(req, res) {
       return res.status(401).json({ error: 'No autorizado' });
     }
 
-    const { school_logo_url, school_name } = req.body || {};
+    const { school_logo_url, school_name, voting_password, voting_password_enabled } = req.body || {};
 
     const { error } = await supabase
       .from('config')
       .update({
         school_logo_url: school_logo_url || null,
-        school_name: school_name || 'Colegio'
+        school_name: school_name || 'Colegio',
+        voting_password: voting_password || null,
+        voting_password_enabled: voting_password_enabled === true
       })
       .eq('id', 1);
 
